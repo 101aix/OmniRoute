@@ -508,7 +508,15 @@ function wrapInCloudCodeEnvelope(model, geminiCLI, credentials = null, isAntigra
   // Both Antigravity and Gemini CLI need the project field for the Cloud Code API.
   // For Gemini CLI, the stored projectId may be stale; the executor's transformRequest
   // refreshes it via loadCodeAssist before the request is sent to the API.
-  let projectId = credentials?.projectId;
+  // Fall back to providerSpecificData.projectId — some connections (and post-refresh
+  // credentials) store it there rather than at the top level, which otherwise produced a
+  // spurious 422 "Missing Google projectId" on the Antigravity /v1beta path (#2480).
+  const providerSpecificProjectId = (
+    credentials?.providerSpecificData as { projectId?: unknown } | undefined
+  )?.projectId;
+  let projectId =
+    credentials?.projectId ||
+    (typeof providerSpecificProjectId === "string" ? providerSpecificProjectId : "");
 
   if (!projectId) {
     console.warn(

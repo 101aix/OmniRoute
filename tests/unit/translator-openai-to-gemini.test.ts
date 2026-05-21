@@ -891,3 +891,26 @@ test("OpenAI -> Antigravity Gemini path preserves thinkingConfig (only Claude is
   assert.equal((result as any).request?.generationConfig.thinkingConfig.thinkingBudget > 0, true);
   assert.equal((result as any).request?.generationConfig.thinkingConfig.includeThoughts, true);
 });
+
+// Regression for #2480: when projectId is stored in providerSpecificData rather than at
+// the top level of the credential record, the Antigravity Cloud Code envelope must still
+// pick it up — otherwise the /v1beta path 422s with "Missing Google projectId".
+test("openaiToAntigravityRequest falls back to providerSpecificData.projectId (#2480)", () => {
+  const result = openaiToAntigravityRequest(
+    "gemini-3.1-flash-lite",
+    { messages: [{ role: "user", content: "Hello" }] },
+    false,
+    { providerSpecificData: { projectId: "proj-from-psd" } } as any
+  );
+  assert.equal(result.project, "proj-from-psd");
+});
+
+test("openaiToAntigravityRequest prefers top-level projectId over providerSpecificData (#2480)", () => {
+  const result = openaiToAntigravityRequest(
+    "gemini-3.1-flash-lite",
+    { messages: [{ role: "user", content: "Hello" }] },
+    false,
+    { projectId: "proj-top", providerSpecificData: { projectId: "proj-psd" } } as any
+  );
+  assert.equal(result.project, "proj-top");
+});
