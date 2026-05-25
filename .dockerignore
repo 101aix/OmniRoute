@@ -47,7 +47,7 @@ blob-report
 # (English) sources at runtime, so translations are not required in the
 # container image.
 docs/i18n/**
-docs/screenshots/**
+# Screenshots kept — referenced by MDX docs at build time
 docs/diagrams/**/*.png
 docs/diagrams/**/*.jpg
 docs/diagrams/**/*.jpeg
