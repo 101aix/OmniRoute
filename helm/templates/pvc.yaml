@@ -1,0 +1,18 @@
+{{- if .Values.appData.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "omniroute.fullname" . }}-data
+  namespace: {{ include "omniroute.namespace" . }}
+  labels:
+{{ include "omniroute.labels" . | indent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.appData.persistence.size }}
+  {{- with .Values.appData.persistence.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+{{- end }}
