@@ -48,13 +48,11 @@ blob-report
 # container image.
 docs/i18n/**
 docs/screenshots/**
-docs/diagrams/exported/**
 docs/diagrams/**/*.png
 docs/diagrams/**/*.jpg
 docs/diagrams/**/*.jpeg
 docs/diagrams/**/*.gif
 docs/diagrams/**/*.webp
-docs/diagrams/**/*.svg
 # Note: `*.md` matches the root only (Go filepath.Match does not cross /),
 # so nested docs/**/*.md is implicitly kept without a re-include rule.
 *.md
