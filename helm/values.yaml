@@ -1,0 +1,111 @@
+namespace:
+  create: true
+  name: ""
+  labels: {}
+
+fullnameOverride: ""
+
+imagePullSecrets: []
+
+image:
+  repository: harbor.lke591431.akamai-apl.net/prod/omniroute
+  tag: "main"
+  pullPolicy: Always
+
+replicas: 1
+
+commonLabels:
+  app.kubernetes.io/part-of: omniroute
+
+podLabels: {}
+podAnnotations: {}
+
+containerPort: 20128
+
+probes:
+  liveness:
+    enabled: true
+    httpGet:
+      path: /api/monitoring/health
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 3
+  readiness:
+    enabled: true
+    httpGet:
+      path: /api/monitoring/health
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  startup:
+    enabled: true
+    httpGet:
+      path: /api/monitoring/health
+      port: http
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 30
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 2Gi
+
+strategy:
+  type: Recreate
+
+podSecurityContext:
+  fsGroup: 1000
+
+terminationGracePeriodSeconds: 30
+lifecycle:
+  preStop:
+    exec:
+      command:
+        - /bin/sh
+        - -c
+        - sleep 30
+
+topologySpread:
+  enabled: true
+  maxSkew: 1
+  topologyKey: kubernetes.io/hostname
+  whenUnsatisfiable: ScheduleAnyway
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+ingress:
+  enabled: false
+  ingressClassName: higress
+  annotations: {}
+  hosts: []
+  tls: []
+
+app:
+  jwtSecret: ""
+  apiKeySecret: ""
+  initialPassword: ""
+  authCookieSecure: "true"
+  nextPublicBaseUrl: ""
+  baseUrl: "http://localhost:20128"
+  nodeEnv: "production"
+  port: "20128"
+  redisUrl: ""
+  appLogToFile: "false"
+  dataDir: /app/data
+
+appData:
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: linode-block-storage-retain

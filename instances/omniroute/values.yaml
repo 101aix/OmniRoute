@@ -1,0 +1,119 @@
+namespace:
+  create: true
+  name: omniroute-01-prod
+  labels:
+    env: prod
+    tenant: omniroute-01
+
+fullnameOverride: omniroute-01
+
+imagePullSecrets:
+  - name: harbor-prod-pull
+
+image:
+  repository: harbor.lke591431.akamai-apl.net/prod/omniroute
+  tag: "main"
+  pullPolicy: Always
+
+commonLabels:
+  app.kubernetes.io/part-of: omniroute
+
+podLabels:
+  tenant: omniroute-01
+  env: prod
+
+containerPort: 20128
+
+probes:
+  liveness:
+    enabled: true
+    httpGet:
+      path: /api/monitoring/health
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 3
+  readiness:
+    enabled: true
+    httpGet:
+      path: /api/monitoring/health
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  startup:
+    enabled: true
+    httpGet:
+      path: /api/monitoring/health
+      port: http
+    initialDelaySeconds: 15
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 30
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 2Gi
+
+strategy:
+  type: Recreate
+
+podSecurityContext:
+  fsGroup: 1000
+
+terminationGracePeriodSeconds: 30
+lifecycle:
+  preStop:
+    exec:
+      command:
+        - /bin/sh
+        - -c
+        - sleep 30
+
+topologySpread:
+  enabled: true
+  maxSkew: 1
+  topologyKey: kubernetes.io/hostname
+  whenUnsatisfiable: ScheduleAnyway
+
+ingress:
+  enabled: true
+  ingressClassName: higress
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    acme.cert-manager.io/http01-edit-in-place: "true"
+    higress.io/ssl-redirect: "true"
+  hosts:
+    - host: omniroute.101aix.net
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - omniroute.101aix.net
+      secretName: omniroute-01-tls
+
+app:
+  jwtSecret: "ipAn3DatSZSpAFG1TvRyy2+HE/QvTIt562b3SUHFNx2R8kvMLJImvcceVH1HtbHv"
+  apiKeySecret: "69c1134369a98622b3153ffee2cf31688ebac4082da30e692d2b8ab1ee61c1da"
+  initialPassword: "7o8MVrolA0gIhAaU"
+  authCookieSecure: "true"
+  nextPublicBaseUrl: "https://omniroute.101aix.net"
+  baseUrl: "http://localhost:20128"
+  nodeEnv: "production"
+  port: "20128"
+  redisUrl: "redis://omniroute-01-redis-redis-redis:6379"
+  appLogToFile: "false"
+  dataDir: /app/data
+
+appData:
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: linode-block-storage-retain

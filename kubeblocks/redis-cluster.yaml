@@ -1,0 +1,63 @@
+apiVersion: apps.kubeblocks.io/v1
+kind: Cluster
+metadata:
+  name: omniroute-01-redis
+  namespace: omniroute-01-prod
+  labels:
+    clusterdefinition.kubeblocks.io/name: redis
+spec:
+  clusterDef: redis
+  topology: replication
+  terminationPolicy: DoNotTerminate
+  backup:
+    enabled: true
+    method: datafile
+    cronExpression: "0 18 * * 0"
+    pitrEnabled: false
+    incrementalBackupEnabled: false
+    repoName: kubeblocks-linode-s3
+    retentionPeriod: 7d
+    startingDeadlineMinutes: 30
+  componentSpecs:
+    - name: redis
+      componentDef: redis-7-1.0.1
+      serviceVersion: "7.2.10"
+      replicas: 3
+      podUpdatePolicy: PreferInPlace
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 250m
+          memory: 256Mi
+      volumeClaimTemplates:
+        - name: data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 1Gi
+            storageClassName: linode-block-storage-retain
+    - name: redis-sentinel
+      componentDef: redis-sentinel-7-1.0.1
+      serviceVersion: "7.2.10"
+      replicas: 3
+      podUpdatePolicy: PreferInPlace
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 250m
+          memory: 256Mi
+      volumeClaimTemplates:
+        - name: data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 1Gi
+            storageClassName: linode-block-storage-retain

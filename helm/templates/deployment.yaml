@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "omniroute.fullname" . }}
+  namespace: {{ include "omniroute.namespace" . }}
+  labels:
+{{ include "omniroute.labels" . | indent 4 }}
+spec:
+  replicas: {{ .Values.replicas }}
+  strategy:
+{{ toYaml .Values.strategy | indent 4 }}
+  selector:
+    matchLabels:
+{{ include "omniroute.selectorLabels" . | indent 6 }}
+      app.kubernetes.io/component: app
+  template:
+    metadata:
+      labels:
+{{ include "omniroute.selectorLabels" . | indent 8 }}
+        app.kubernetes.io/component: app
+{{- with .Values.podLabels }}
+{{ toYaml . | indent 8 }}
+{{- end }}
+{{- if .Values.podAnnotations }}
+      annotations:
+{{ toYaml .Values.podAnnotations | indent 8 }}
+{{- end }}
+    spec:
+{{- with .Values.podSecurityContext }}
+      securityContext:
+{{ toYaml . | indent 8 }}
+{{- end }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+{{- if .Values.topologySpread.enabled }}
+      topologySpreadConstraints:
+        - maxSkew: {{ .Values.topologySpread.maxSkew }}
+          topologyKey: {{ .Values.topologySpread.topologyKey }}
+          whenUnsatisfiable: {{ .Values.topologySpread.whenUnsatisfiable }}
+          labelSelector:
+            matchLabels:
+{{ include "omniroute.selectorLabels" . | indent 14 }}
+              app.kubernetes.io/component: app
+{{- end }}
+{{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+{{ toYaml .Values.imagePullSecrets | indent 8 }}
+{{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.containerPort }}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "omniroute.fullname" . }}-env
+            - secretRef:
+                name: {{ include "omniroute.fullname" . }}
+{{- if .Values.probes.readiness.enabled }}
+          readinessProbe:
+{{ toYaml (omit .Values.probes.readiness "enabled") | indent 12 }}
+{{- end }}
+{{- if .Values.probes.liveness.enabled }}
+          livenessProbe:
+{{ toYaml (omit .Values.probes.liveness "enabled") | indent 12 }}
+{{- end }}
+{{- if .Values.probes.startup.enabled }}
+          startupProbe:
+{{ toYaml (omit .Values.probes.startup "enabled") | indent 12 }}
+{{- end }}
+          lifecycle:
+{{ toYaml .Values.lifecycle | indent 12 }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+          volumeMounts:
+            - mountPath: {{ .Values.app.dataDir }}
+              name: data
+      volumes:
+        - name: data
+{{- if .Values.appData.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "omniroute.fullname" . }}-data
+{{- else }}
+          emptyDir: {}
+{{- end }}

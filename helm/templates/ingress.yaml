@@ -1,0 +1,36 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "omniroute.fullname" . }}
+  namespace: {{ include "omniroute.namespace" . }}
+  labels:
+{{ include "omniroute.labels" . | indent 4 }}
+{{- with .Values.ingress.annotations }}
+  annotations:
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.ingressClassName }}
+{{- with .Values.ingress.hosts }}
+  rules:
+{{- range . }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+{{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "omniroute.fullname" $ }}
+                port:
+                  number: {{ $.Values.containerPort }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- with .Values.ingress.tls }}
+  tls:
+{{ toYaml . | indent 4 }}
+{{- end }}
+{{- end }}

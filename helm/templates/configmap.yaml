@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "omniroute.fullname" . }}-env
+  namespace: {{ include "omniroute.namespace" . }}
+  labels:
+{{ include "omniroute.labels" . | indent 4 }}
+data:
+  APP_LOG_TO_FILE: {{ .Values.app.appLogToFile | quote }}
+  AUTH_COOKIE_SECURE: {{ .Values.app.authCookieSecure | quote }}
+  BASE_URL: {{ .Values.app.baseUrl | quote }}
+  NEXT_PUBLIC_BASE_URL: {{ .Values.app.nextPublicBaseUrl | quote }}
+  NODE_ENV: {{ .Values.app.nodeEnv | quote }}
+  PORT: {{ .Values.app.port | quote }}
+  REDIS_URL: {{ .Values.app.redisUrl | quote }}

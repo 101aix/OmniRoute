@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: omniroute-01-prod
+  labels:
+    app.kubernetes.io/name: omniroute
+    app.kubernetes.io/part-of: omniroute
+    app.kubernetes.io/instance: omniroute-01

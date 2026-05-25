@@ -1,0 +1,4 @@
+name: omniroute-01
+namespace: omniroute-01-prod
+releaseName: omniroute-01
+valuesFile: instances/omniroute/values.yaml

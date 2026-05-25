@@ -1,0 +1,124 @@
+name: Publish image to 101aix Harbor
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Optional branch, tag, or SHA to build'
+        required: false
+        type: string
+      image_tag:
+        description: 'Optional image tag override'
+        required: false
+        type: string
+
+env:
+  HARBOR_REGISTRY: harbor.lke591431.akamai-apl.net
+  HARBOR_IMAGE: prod/omniroute
+
+jobs:
+  build:
+    name: Build and push linux/amd64 image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: Resolve image tags and version
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          IMAGE="${HARBOR_REGISTRY}/${HARBOR_IMAGE}"
+          SHORT_SHA="$(git rev-parse --short=7 HEAD)"
+          BUILD_DATE="$(date -u +'%Y%m%d')"
+          REF_NAME="${GITHUB_REF_NAME}"
+
+          if [ -n "${{ github.event.inputs.image_tag || '' }}" ]; then
+            VERSION="${{ github.event.inputs.image_tag }}"
+            TAGS="${IMAGE}:${VERSION}"
+          elif git describe --exact-match --tags HEAD >/dev/null 2>&1; then
+            VERSION="$(git describe --exact-match --tags HEAD)"
+            TAGS="${IMAGE}:${VERSION}"$'\n'"${IMAGE}:latest"
+          elif [ "${REF_NAME}" = "main" ]; then
+            VERSION="main-${BUILD_DATE}-${SHORT_SHA}"
+            TAGS="${IMAGE}:main"$'\n'"${IMAGE}:main-${SHORT_SHA}"$'\n'"${IMAGE}:${VERSION}"
+          else
+            SAFE_REF="$(echo "${REF_NAME}" | tr '/[:upper:]' '-[:lower:]' | tr -cd 'a-z0-9_.-')"
+            VERSION="${SAFE_REF}-${BUILD_DATE}-${SHORT_SHA}"
+            TAGS="${IMAGE}:${VERSION}"
+          fi
+
+          echo "${VERSION}" > VERSION
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          {
+            echo "tags<<EOF"
+            echo "${TAGS}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+
+          echo "Building ${IMAGE} as ${VERSION}"
+          echo "${TAGS}"
+
+          echo "short_sha=${SHORT_SHA}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Harbor
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.HARBOR_REGISTRY }}
+          username: ${{ vars.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile
+          target: runner-base
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
+
+      - name: Update instance image tag
+        if: github.ref_name == 'main'
+        env:
+          NEW_TAG: main-${{ steps.meta.outputs.short_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VALUES_FILE="instances/omniroute/values.yaml"
+          if grep -A2 "^image:" "${VALUES_FILE}" | grep -q "tag: \"${NEW_TAG}\""; then
+            echo "Image tag already up to date: ${NEW_TAG}"
+            exit 0
+          fi
+          sed -i "/^image:/,/^[a-z]/ { s/tag: \".*\"/tag: \"${NEW_TAG}\"/ }" "${VALUES_FILE}"
+          git diff --stat "${VALUES_FILE}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "${VALUES_FILE}"
+          git commit -m "chore: bump omniroute-01 image to ${NEW_TAG} [skip ci]"
+          git push origin HEAD:main

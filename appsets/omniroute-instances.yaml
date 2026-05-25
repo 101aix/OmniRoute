@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: omniroute-instances
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - git:
+        repoURL: git@github.com:101aix/OmniRoute.git
+        revision: main
+        files:
+          - path: instances/omniroute*/instance.yaml
+  template:
+    metadata:
+      name: '{{ .name }}'
+    spec:
+      project: prod
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .namespace }}'
+      sources:
+        - repoURL: git@github.com:101aix/OmniRoute.git
+          targetRevision: main
+          path: helm
+          helm:
+            releaseName: '{{ .releaseName }}'
+            valueFiles:
+              - '$values/{{ .valuesFile }}'
+        - repoURL: git@github.com:101aix/OmniRoute.git
+          targetRevision: main
+          ref: values
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
