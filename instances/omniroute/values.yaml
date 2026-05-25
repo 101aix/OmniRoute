@@ -12,7 +12,7 @@ imagePullSecrets:
 
 image:
   repository: harbor.lke591431.akamai-apl.net/prod/omniroute
-  tag: "main-c612c13"
+  tag: "main-6fed041"
   pullPolicy: Always
 
 commonLabels:
